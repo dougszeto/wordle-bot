@@ -12,7 +12,6 @@ from utils import get_best_word, read_words
 
 def play_wordle(words_list, pwm):
     # use ASCII to generate list of all lower-case letters
-
     # all letters are possible in each pos (to start)
     letters_by_pos = {
         0: [chr(i) for i in range(97, 123)],
@@ -22,6 +21,7 @@ def play_wordle(words_list, pwm):
         4: [chr(i) for i in range(97, 123)]
     }
 
+    # tracking yellow tiles
     present_letters = []
 
     # Open chrome to wordle website
@@ -53,33 +53,37 @@ def play_wordle(words_list, pwm):
 
         # update valid letters
         board = shadow.find_element('#board')
-        row = shadow.find_element(board, f'game-row[letters="{word}"]')
-        # assume board is solved unless a square is absent or present
-        solved = True
-        for i, letter in enumerate(word):
-            tile = shadow.find_element(row, f'game-tile[letter="{letter}"]')
-            state = shadow.get_attribute(tile, 'evaluation')
-        
-            if state == 'absent':
-                solved = False
-                # remove the letter from each pos
-                for pos in letters_by_pos:
-                    if letter in letters_by_pos[pos]: 
-                        letters_by_pos[pos].remove(letter)
-            
-            elif state == 'correct':
-                # this position can only be the letter
-                letters_by_pos[i] = [letter]
+        game_row = shadow.find_element(board, f'game-row[letters="{word}"]')
 
-            # state == present
-            else:
+        # need to iterate through the tiles to preserve position if duplicate letters
+        div_row = shadow.find_element(game_row, '.row')
+        tiles = shadow.get_child_elements(div_row)
+
+        solved = True
+        for pos, tile in enumerate(tiles):
+            letter = shadow.get_attribute(tile, 'letter')
+            eval = shadow.get_attribute(tile, 'evaluation')
+    
+            if eval == 'present':
                 solved = False
                 # remove the letter from this pos (since not correct)
-                letters_by_pos[i].remove(letter)
+                if letter in letters_by_pos[pos]: letters_by_pos[pos].remove(letter)
 
                 # send a flag signalling this letter MUST be in the word
                 present_letters.append(letter)
+            
+            elif eval == 'correct':
+                # this position can only be the letter
+                letters_by_pos[pos] = [letter]
 
+            # eval == absent
+            else:
+                solved = False
+                # remove the letter from each pos
+                for pos in letters_by_pos:
+                    if letters_by_pos[pos] == [letter]: continue
+                    elif letter in letters_by_pos[pos]: letters_by_pos[pos].remove(letter)
+        
         time.sleep(3)
 
     if solved:
@@ -90,6 +94,7 @@ def play_wordle(words_list, pwm):
     time.sleep(5)
     # Close the tab when finished
     driver.close()
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -106,5 +111,7 @@ def main():
     pwm = json.load(open(pwm_file, 'r'))
 
     play_wordle(words_list, pwm)
+
+
 if __name__ == '__main__':
     main()
