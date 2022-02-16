@@ -43,7 +43,9 @@ def play_wordle(words_list, pwm):
     score_board = ''
     while not solved and attempt < 6:
 
-        word = get_best_word(words_list, pwm, letters_by_pos, present_letters)['word']
+        print('**************************')
+        print(f'ATTEMPT: {attempt}')
+        word = get_best_word(words_list, letters_by_pos, present_letters)['word']
 
         # Type best word and enter
         for char in word:
@@ -121,10 +123,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-w', '--words')
     parser.add_argument('-p', '--pwm')
+    parser.add_argument('-t', '--tweet', default=False, type=bool)
 
     args = parser.parse_args()
     words_file = args.words
     pwm_file = args.pwm
+    tweet = args.tweet
 
     words_list = read_words(words_file)
 
@@ -132,7 +136,9 @@ def main():
     pwm = json.load(open(pwm_file, 'r'))
 
     score_board = play_wordle(words_list, pwm)
-    tweet_score(score_board)
+    print(score_board)
+    if tweet:
+        tweet_score(score_board)
 
 if __name__ == '__main__':
     main()

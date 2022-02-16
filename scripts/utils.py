@@ -1,17 +1,16 @@
-from cgitb import text
 import tweepy
 from dotenv import dotenv_values
 from pathlib import Path
 import os.path as osp
-from datetime import date
 
 parentdir = Path(__file__).parents[1]
 
 # NOTE: consider adding a penalty for repeating letters and collecting the top 10 words and deciding which gives most info
-def get_best_word(all_words, pwm, letters_by_pos, present_letters):
+def get_best_word(all_words, letters_by_pos, present_letters):
     # step 1: filter all words to contain only words that use exclusively valid_letters -> valid_words
 
     valid_words = filter_words(letters_by_pos, all_words, present_letters)
+    pwm = calc_pwm(valid_words)
 
     # step 2: iterate through valid_words and calculate probabilities using PWM
     best = {
@@ -21,7 +20,6 @@ def get_best_word(all_words, pwm, letters_by_pos, present_letters):
     for word in valid_words:
         prob = 1
         for pos, char in enumerate(word):
-            pos = str(pos)
             prob *= pwm[pos][char]
         if prob > best['prob']:
             best['word'] = word
@@ -77,3 +75,23 @@ def tweet_score(score):
         access_token_secret=config['ACCESS_SECRET']
     )
     client.create_tweet(text=score)
+
+def calc_pwm(words):
+    # initialize position-weight-matrix with keys as position and value as a dictionary containing freq of each letter
+    pwm = {}
+    for i in range(5):
+        pwm[i] = {}
+        for j in range(97, 123):
+            pwm[i][chr(j)] = 0.0
+
+
+    for word in words:
+        for pos, char in enumerate(word):
+            pwm[pos][char] += 1
+    
+    total_words = len(words)
+    for pos in pwm:
+        for char in pwm[pos]:
+            pwm[pos][char] = pwm[pos][char] / total_words
+    
+    return pwm

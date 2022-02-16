@@ -25,4 +25,4 @@ Note that `data/all-words.txt` was retrieved from  [https://www-cs-faculty.stanf
 ## Future Improvements
 * Create a scheme to score potential words based on how much info they reveal (ie. reward words without duplicate letters)
 * Use more extensive list of words for `data/all-words.txt`
-* Connect to Twitter API / SMS / Email to share results?
+* ~~Connect to Twitter API / SMS / Email to share results?~~

@@ -1,28 +1,6 @@
 import argparse
 import json
-from utils import read_words
-
-def calc_pwm(words):
-    # initialize position-weight-matrix with keys as position and value as a dictionary containing freq of each letter
-    pwm = {}
-    for i in range(5):
-        pwm[i] = {}
-        for j in range(97, 123):
-            pwm[i][chr(j)] = 0.0
-
-
-    for word in words:
-        for pos, char in enumerate(word):
-            pwm[pos][char] += 1
-    
-    total_words = len(words)
-    for pos in pwm:
-        for char in pwm[pos]:
-            pwm[pos][char] = pwm[pos][char] / total_words
-    
-    return pwm
-
-
+from utils import read_words, calc_pwm
 
 def main():
     parser = argparse.ArgumentParser()
