@@ -45,10 +45,3 @@ class NYTimesConnector:
 
     def exit(self):
         self.driver.close()
-        
-# ny_times = NYTimesConnector()
-# ny_times.close_instructions()
-# response = ny_times.submit_guess("touch")
-# ny_times.exit()
-
-# print(response)

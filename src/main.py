@@ -35,7 +35,7 @@ def play_wordle(words_list, pwm, connector):
     score_board = ''
     while not solved and attempt < 6:
         attempt += 1
-        word = get_best_word(words_list, letters_by_pos, present_letters)['word']
+        word = get_best_word(words_list, letters_by_pos, present_letters)
         response = connector.submit_guess(word)
 
         solved = True

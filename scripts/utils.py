@@ -1,3 +1,4 @@
+import math
 import tweepy
 from dotenv import dotenv_values
 from pathlib import Path
@@ -5,28 +6,42 @@ import os.path as osp
 
 parentdir = Path(__file__).parents[1]
 
-# NOTE: consider adding a penalty for repeating letters and collecting the top 10 words and deciding which gives most info
+# all possible outcomes of a guess
+combos = []
+states = [ 'absent', 'present', 'correct']
+for i in states:
+    for j in states:
+        for k in states:
+            for l in states:
+                for m in states:
+                    combos.append((i,j,k,l,m))
+
+
+def solver_version_1(all_words, letters_by_pos, present_letters):
+    valid_words = filter_words(letters_by_pos, all_words, present_letters)
+    pwm = calc_pwm(valid_words)
+    return get_most_probable_word(valid_words, pwm)
+
+
 def get_best_word(all_words, letters_by_pos, present_letters):
     # step 1: filter all words to contain only words that use exclusively valid_letters -> valid_words
 
     valid_words = filter_words(letters_by_pos, all_words, present_letters)
     pwm = calc_pwm(valid_words)
 
-    # step 2: iterate through valid_words and calculate probabilities using PWM
-    best = {
-        'word': '',
-        'prob': 0
-    }
-    for word in valid_words:
-        prob = 1
-        for pos, char in enumerate(word):
-            prob *= pwm[pos][char]
-        if prob > best['prob']:
-            best['word'] = word
-            best['prob'] = prob
+    # step 2: iterate through valid_words and use PWM to get top 10 most probable words
+    most_probable_words = []
+    if len(valid_words) > 10:
+        for i in range(10):
+            best = get_most_probable_word(valid_words, pwm)
+            most_probable_words.append(best)
+            valid_words.remove(best)        # need to remove best so that we don't get same result 10 times
+    else: most_probable_words = valid_words
+
     
-    # step 3: select and return the most probable word
-    return best
+    # step 3: iterate through top 10 most probable words and choose the one with most information
+    best_word = get_most_info_word(most_probable_words, all_words)
+    return best_word
 
 def filter_words(letters_by_pos, words, present_letters):
     valid_words = []
@@ -95,3 +110,60 @@ def calc_pwm(words):
             pwm[pos][char] = pwm[pos][char] / total_words
     
     return pwm
+
+def calc_info(word, all_words):
+    expected_info = 0
+    letters_by_pos = {
+        0: [chr(i) for i in range(97, 123)],
+        1: [chr(i) for i in range(97, 123)],
+        2: [chr(i) for i in range(97, 123)],
+        3: [chr(i) for i in range(97, 123)],
+        4: [chr(i) for i in range(97, 123)]
+    }
+    present_letters = []
+    # calculate prob of all 3^5 (number of words that satisfy pattern / total words)
+    for combo in combos:
+        for pos, state in enumerate(combo):
+            letter = word[pos]
+            if state == 'present' and letter in letters_by_pos[pos]:
+                letters_by_pos[pos].remove(letter)
+                present_letters.append(letter)
+            elif state == 'correct': letters_by_pos[pos] = [letter]
+            else:
+                for pos in letters_by_pos:
+                    if letters_by_pos[pos] == [letter]: continue
+                    elif letter in letters_by_pos[pos]: letters_by_pos[pos].remove(letter)
+        
+        filtered_words = filter_words(letters_by_pos, all_words, present_letters)
+        combo_prob = len(filtered_words) / len(all_words)
+
+        # calculate expected information E(x) = sum(prob(x) * -log2(p(x)))
+        if combo_prob > 0:
+            expected_info += (combo_prob * -math.log(combo_prob, 2))
+
+    return expected_info
+
+    
+def get_most_probable_word(words, pwm):
+    best_word = ''
+    best_prob = 0
+    for word in words:
+        prob = 1
+        for pos, char in enumerate(word):
+            prob *= pwm[pos][char]
+            if prob > best_prob:
+                best_word = word
+                best_prob = prob
+
+    return best_word
+
+def get_most_info_word(query_words, all_words):
+    best_info = 0
+    best_word = ''
+    for query in query_words:
+        info = calc_info(query, all_words)
+        if info > best_info:
+            best_info = info
+            best_word = query
+    return best_word
+
