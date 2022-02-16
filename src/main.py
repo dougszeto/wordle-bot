@@ -3,11 +3,12 @@ from selenium import webdriver
 from pyshadow.main import Shadow
 from pathlib import Path
 import os.path as osp
+from datetime import date
 
 parentdir = Path(__file__).parents[1]
 sys.path.append(osp.join(parentdir, 'scripts'))
 
-from utils import get_best_word, read_words
+from utils import get_best_word, read_words, tweet_score
 
 
 def play_wordle(words_list, pwm):
@@ -39,6 +40,7 @@ def play_wordle(words_list, pwm):
     # guess words until solved or out of guesses
     solved = False 
     attempt = 0
+    score_board = ''
     while not solved and attempt < 6:
 
         word = get_best_word(words_list, pwm, letters_by_pos, present_letters)['word']
@@ -60,12 +62,15 @@ def play_wordle(words_list, pwm):
         tiles = shadow.get_child_elements(div_row)
 
         solved = True
+        
+        score_row = ''
         for pos, tile in enumerate(tiles):
             letter = shadow.get_attribute(tile, 'letter')
             eval = shadow.get_attribute(tile, 'evaluation')
     
             if eval == 'present':
                 solved = False
+                score_row += '🟨'
                 # remove the letter from this pos (since not correct)
                 if letter in letters_by_pos[pos]: letters_by_pos[pos].remove(letter)
 
@@ -73,27 +78,43 @@ def play_wordle(words_list, pwm):
                 present_letters.append(letter)
             
             elif eval == 'correct':
+                score_row += '🟩'
                 # this position can only be the letter
                 letters_by_pos[pos] = [letter]
 
             # eval == absent
             else:
                 solved = False
+                score_row += '⬛️'
                 # remove the letter from each pos
                 for pos in letters_by_pos:
                     if letters_by_pos[pos] == [letter]: continue
                     elif letter in letters_by_pos[pos]: letters_by_pos[pos].remove(letter)
-        
+
+        if not solved:
+            score_row += '\n'
+
+        score_board += (score_row)
         time.sleep(3)
 
     if solved:
         print(f"Wordle-bot solved today's wordle in {attempt} tries!")
     else:
         print("Wordle-bot couldn't solve today's wordle :(")
+        attempt = 'X'
     
-    time.sleep(5)
     # Close the tab when finished
     driver.close()
+
+    # configure sharing header
+    d0 = date(2022, 2, 16)
+    d1 = date.today()
+    days = (d1-d0).days
+    wordle_number = 242 + days
+    score_header = f'Wordle {wordle_number} {attempt}/6\n\n'
+
+    score_board = score_header + score_board
+    return score_board
 
 
 def main():
@@ -110,8 +131,8 @@ def main():
     # NOTE: json.load() automatically converts keys into strings, thus they are no longer ints!
     pwm = json.load(open(pwm_file, 'r'))
 
-    play_wordle(words_list, pwm)
-
+    score_board = play_wordle(words_list, pwm)
+    tweet_score(score_board)
 
 if __name__ == '__main__':
     main()

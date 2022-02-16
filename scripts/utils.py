@@ -1,3 +1,12 @@
+from cgitb import text
+import tweepy
+from dotenv import dotenv_values
+from pathlib import Path
+import os.path as osp
+from datetime import date
+
+parentdir = Path(__file__).parents[1]
+
 # NOTE: consider adding a penalty for repeating letters and collecting the top 10 words and deciding which gives most info
 def get_best_word(all_words, pwm, letters_by_pos, present_letters):
     # step 1: filter all words to contain only words that use exclusively valid_letters -> valid_words
@@ -56,3 +65,15 @@ def read_words(word_file):
         last_word = lines[-1].lower()
         all_words.append(last_word)
     return all_words
+
+
+def tweet_score(score):
+    config = dotenv_values(osp.join(parentdir, '.env'))
+
+    client = tweepy.Client(
+        consumer_key=config['CONSUMER'],
+        consumer_secret=config['CONSUMER_SECRET'],
+        access_token=config['ACCESS'],
+        access_token_secret=config['ACCESS_SECRET']
+    )
+    client.create_tweet(text=score)
