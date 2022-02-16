@@ -4,6 +4,7 @@ from pyshadow.main import Shadow
 from pathlib import Path
 import os.path as osp
 from datetime import date
+from ny_times_connector import NYTimesConnector
 
 parentdir = Path(__file__).parents[1]
 sys.path.append(osp.join(parentdir, 'scripts'))
@@ -11,7 +12,10 @@ sys.path.append(osp.join(parentdir, 'scripts'))
 from utils import get_best_word, read_words, tweet_score
 
 
-def play_wordle(words_list, pwm):
+def play_wordle(words_list, pwm, connector):
+    connector.start()
+    time.sleep(1)
+    connector.close_instructions()
     # use ASCII to generate list of all lower-case letters
     # all letters are possible in each pos (to start)
     letters_by_pos = {
@@ -25,51 +29,18 @@ def play_wordle(words_list, pwm):
     # tracking yellow tiles
     present_letters = []
 
-    # Open chrome to wordle website
-    driver = webdriver.Chrome('chromedriver')
-    shadow = Shadow(driver)
-    driver.get("https://www.nytimes.com/games/wordle/index.html")
-
-    # Close the pop-up menu with game instructions
-    button = shadow.find_elements('.close-icon')
-    button[0].click()
-
-    # navigate to the keyboard
-    keyboard = shadow.find_element('#keyboard')
-
     # guess words until solved or out of guesses
     solved = False 
     attempt = 0
     score_board = ''
     while not solved and attempt < 6:
-
-        print('**************************')
-        print(f'ATTEMPT: {attempt}')
-        word = get_best_word(words_list, letters_by_pos, present_letters)['word']
-
-        # Type best word and enter
-        for char in word:
-            letter = shadow.find_element(keyboard, f'button[data-key="{char}"]')
-            letter.click()
-        submit = shadow.find_element(keyboard, f'button[data-key="↵"]')
-        submit.click()
         attempt += 1
-
-        # update valid letters
-        board = shadow.find_element('#board')
-        game_row = shadow.find_element(board, f'game-row[letters="{word}"]')
-
-        # need to iterate through the tiles to preserve position if duplicate letters
-        div_row = shadow.find_element(game_row, '.row')
-        tiles = shadow.get_child_elements(div_row)
+        word = get_best_word(words_list, letters_by_pos, present_letters)['word']
+        response = connector.submit_guess(word)
 
         solved = True
-        
         score_row = ''
-        for pos, tile in enumerate(tiles):
-            letter = shadow.get_attribute(tile, 'letter')
-            eval = shadow.get_attribute(tile, 'evaluation')
-    
+        for pos, (letter, eval) in enumerate(response):
             if eval == 'present':
                 solved = False
                 score_row += '🟨'
@@ -105,15 +76,10 @@ def play_wordle(words_list, pwm):
         print("Wordle-bot couldn't solve today's wordle :(")
         attempt = 'X'
     
+    score_header = connector.score_header(attempt)
     # Close the tab when finished
-    driver.close()
+    connector.exit()
 
-    # configure sharing header
-    d0 = date(2022, 2, 16)
-    d1 = date.today()
-    days = (d1-d0).days
-    wordle_number = 242 + days
-    score_header = f'Wordle {wordle_number} {attempt}/6\n\n'
 
     score_board = score_header + score_board
     return score_board
@@ -134,8 +100,9 @@ def main():
 
     # NOTE: json.load() automatically converts keys into strings, thus they are no longer ints!
     pwm = json.load(open(pwm_file, 'r'))
+    ny_times_connector = NYTimesConnector()
 
-    score_board = play_wordle(words_list, pwm)
+    score_board = play_wordle(words_list, pwm, ny_times_connector)
     print(score_board)
     if tweet:
         tweet_score(score_board)
